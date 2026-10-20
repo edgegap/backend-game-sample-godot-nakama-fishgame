@@ -25,6 +25,9 @@ var connection_event_url := ''
 var nakama_url := ''
 var _rpc_query := ''
 var expected_user_ids: Array = []
+# Automated tests: hit one fish per round (Main.gd), from Nakama's metadata or
+# the "-- --test-auto-hit" argument.
+var test_auto_hit := false
 
 var _stopping := false
 var _had_players := false
@@ -86,8 +89,9 @@ func _read_environment() -> void:
 	var metadata = _parse_env_json("NAKAMA_INSTANCE_METADATA")
 	if metadata is Dictionary and metadata.get("user_ids") is Array:
 		expected_user_ids = metadata["user_ids"]
+	test_auto_hit = Util.has_arg("test-auto-hit") or (metadata is Dictionary and metadata.get("test_auto_hit") == true)
 
-	print("Nakama: %s, expected players: %s" % [nakama_url if nakama_url != '' else "(none)", expected_user_ids])
+	print("Nakama: %s, expected players: %s%s" % [nakama_url if nakama_url != '' else "(none)", expected_user_ids, ", test auto-hit on" if test_auto_hit else ""])
 
 func _game_server_metadata() -> Dictionary:
 	var ports_mapping = _parse_env_json("ARBITRIUM_PORTS_MAPPING")
