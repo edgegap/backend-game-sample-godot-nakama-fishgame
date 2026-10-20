@@ -1,0 +1,28 @@
+name: build
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  server-image:
+    name: Game server image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Export and build the dedicated server
+        run: docker build --platform linux/amd64 -f server/Dockerfile -t fishgame-server:ci .
+      - name: Server starts and listens
+        run: |
+          docker run -d --name server fishgame-server:ci
+          sleep 10
+          docker logs server 2>&1 | tee server.log
+          grep -q "listening on UDP port 7777" server.log
+
+  nakama:
+    name: Nakama module
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Nakama with the plugin
+        run: docker build -t fishgame-nakama:ci nakama

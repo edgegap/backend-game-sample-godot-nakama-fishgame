@@ -9,11 +9,14 @@ func map_stop() -> void:
 	get_tree().call_group("map_object", "map_object_stop")
 
 func get_map_rect() -> Rect2:
-	var rect: Rect2
+	var rect := Rect2()
+	var first := true
 	for child in get_children():
 		if child is TileMap:
-			if rect == null:
-				rect = child.get_used_rect()
+			var used := Rect2(child.get_used_rect())
+			if first:
+				rect = used
+				first = false
 			else:
-				rect = rect.merge(child.get_used_rect())
+				rect = rect.merge(used)
 	return Rect2(rect.position * TILE_SIZE, rect.size * TILE_SIZE)
