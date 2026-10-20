@@ -1,7 +1,7 @@
 extends "res://addons/snopek-state-machine/State.gd"
 
-onready var host = $"../.."
-onready var timer = $Timer
+@onready var host = $"../.."
+@onready var timer = $Timer
 
 func _state_enter(info: Dictionary) -> void:
 	host.play_animation("Hurt")
@@ -14,5 +14,6 @@ func _state_exit() -> void:
 	timer.stop()
 
 func _on_Timer_timeout() -> void:
-	if host.state_machine.current_state == self:
+	# Online, the server kills the player when the hurt time is over.
+	if host.state_machine.current_state == self and not GameState.online_play:
 		host.state_machine.change_state("Dead")

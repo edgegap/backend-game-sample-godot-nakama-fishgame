@@ -2,15 +2,15 @@ extends Node2D
 
 var Player = preload("res://actors/Player.tscn")
 
-export (PackedScene) var map_scene = preload("res://maps/Map1.tscn")
+@export var map_scene: PackedScene = preload("res://maps/Map1.tscn")
 
-onready var map: Node2D = $Map
-onready var players_node := $Players
-onready var camera := $Camera2D
-onready var original_camera_position: Vector2 = camera.global_position
+@onready var map: Node2D = $Map
+@onready var players_node := $Players
+@onready var camera := $Camera2D
+@onready var original_camera_position: Vector2 = camera.global_position
 
-var game_started := false
-var game_over := false
+var started := false
+var is_over := false
 var players_alive := {}
 var players_setup := {}
 
@@ -24,31 +24,33 @@ func game_start(players: Dictionary) -> void:
 	else:
 		_do_game_setup(players)
 
-# Initializes the game so that it is ready to really start.
-remotesync func _do_game_setup(players: Dictionary) -> void:
+# Initializes the game so that it is ready to really start. Online, the
+# dedicated server (peer 1) calls this on everyone, itself included.
+@rpc("authority", "call_local", "reliable")
+func _do_game_setup(players: Dictionary) -> void:
 	get_tree().set_pause(true)
 
-	if game_started:
+	if started:
 		game_stop()
 
-	game_started = true
-	game_over = false
-	players_alive = players
+	started = true
+	is_over = false
+	players_alive = players.duplicate()
 
 	reload_map()
 
 	var player_number := 1
 	for peer_id in players:
-		var other_player = Player.instance()
+		var other_player = Player.instantiate()
 		other_player.name = str(peer_id)
 		players_node.add_child(other_player)
 
-		other_player.set_network_master(peer_id)
+		other_player.set_multiplayer_authority(peer_id)
 		other_player.set_player_skin(player_number - 1)
 		other_player.set_player_name(players[peer_id])
 		other_player.position = map.get_node("PlayerStartPositions/Player" + str(player_number)).position
 		other_player.rotation = map.get_node("PlayerStartPositions/Player" + str(player_number)).rotation
-		other_player.connect("player_dead", self, "_on_player_dead", [peer_id])
+		other_player.connect("player_dead", Callable(self, "_on_player_dead").bind(peer_id))
 
 		if not GameState.online_play:
 			other_player.player_controlled = true
@@ -58,25 +60,32 @@ remotesync func _do_game_setup(players: Dictionary) -> void:
 
 	camera.update_position_and_zoom(false)
 
-	if GameState.online_play:
-		var my_id := get_tree().get_network_unique_id()
+	if not GameState.online_play:
+		_do_game_start()
+	elif not multiplayer.is_server():
+		var my_id := multiplayer.get_unique_id()
 		var my_player := players_node.get_node(str(my_id))
 		my_player.player_controlled = true
 
-		# Tell the host that we've finished setup.
-		rpc_id(1, '_finished_game_setup', my_id)
-	else:
-		_do_game_start()
+		# Tell the server that we've finished setup.
+		rpc_id(1, '_finished_game_setup')
 
 # Records when each player has finished setup so we know when all players are ready.
-remotesync func _finished_game_setup(peer_id: int) -> void:
+@rpc("any_peer", "call_remote", "reliable")
+func _finished_game_setup() -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	if not players_alive.has(peer_id):
+		return
 	players_setup[peer_id] = players_alive[peer_id]
 	if players_setup.size() == players_alive.size():
 		# Once all clients have finished setup, tell them to start the game.
 		rpc('_do_game_start')
 
-# Actually start the game on this client.
-remotesync func _do_game_start() -> void:
+# Actually start the game on this peer.
+@rpc("authority", "call_local", "reliable")
+func _do_game_start() -> void:
 	if map.has_method('map_start'):
 		map.map_start()
 	emit_signal("game_started")
@@ -86,7 +95,7 @@ func game_stop() -> void:
 	if map.has_method('map_stop'):
 		map.map_stop()
 
-	game_started = false
+	started = false
 	players_setup.clear()
 	players_alive.clear()
 
@@ -99,7 +108,7 @@ func reload_map() -> void:
 	remove_child(map)
 	map.queue_free()
 
-	map = map_scene.instance()
+	map = map_scene.instantiate()
 	map.name = 'Map'
 	add_child(map)
 	move_child(map, map_index)
@@ -110,22 +119,25 @@ func reload_map() -> void:
 	camera.limit_top = map_rect.position.y
 	camera.limit_right = map_rect.position.x + map_rect.size.x
 
+# Removes a player who left. Every peer sees the disconnect, so this runs
+# locally everywhere instead of over the network.
 func kill_player(peer_id) -> void:
 	var player_node = players_node.get_node_or_null(str(peer_id))
 	if player_node:
-		if player_node.has_method("die"):
-			player_node.die()
+		if player_node.has_method("_do_die"):
+			player_node._do_die()
 		else:
-			# If there is no die method, we do the most important things it
-			# would have done.
 			player_node.queue_free()
 			_on_player_dead(peer_id)
+	elif players_setup.has(peer_id) or players_alive.has(peer_id):
+		players_setup.erase(peer_id)
+		_on_player_dead(peer_id)
 
 func _on_player_dead(peer_id) -> void:
 	emit_signal("player_dead", peer_id)
 
 	players_alive.erase(peer_id)
-	if not game_over and players_alive.size() == 1:
-		game_over = true
+	if started and not is_over and players_alive.size() == 1:
+		is_over = true
 		var player_keys = players_alive.keys()
 		emit_signal("game_over", player_keys[0])

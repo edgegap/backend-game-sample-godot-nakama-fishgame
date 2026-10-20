@@ -1,6 +1,6 @@
 extends Area2D
 
-export (bool) var disabled := false setget set_disabled
+@export var disabled := false: set = set_disabled
 
 func _ready() -> void:
 	_update_disabled()
@@ -17,5 +17,8 @@ func _update_disabled() -> void:
 
 func _on_body_entered(body: Node) -> void:
 	if not disabled and body.has_method('hurt'):
-		if not GameState.online_play or body.is_network_master():
+		if not GameState.online_play:
 			body.hurt(self)
+		elif multiplayer.is_server() and body.has_method('server_hit'):
+			# Online, only the dedicated server decides who got hit.
+			body.server_hit(self)
