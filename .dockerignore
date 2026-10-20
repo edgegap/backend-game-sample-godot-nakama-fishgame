@@ -1,0 +1,6 @@
+.git
+.godot
+build
+nakama
+tests/*.png
+*.md

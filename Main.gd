@@ -27,6 +27,8 @@ func _ready() -> void:
 		GameState.online_play = true
 		ui_layer.hide_all()
 		game.reload_map()
+		if EdgegapServer.test_auto_hit:
+			game.game_started.connect(_test_auto_hit)
 		return
 
 	music.play_random()
@@ -245,6 +247,21 @@ func show_winner(name: String, peer_id: int = 0, score: int = 0, is_match: bool 
 			ui_layer.show_screen("ReadyScreen")
 	else:
 		restart_game()
+
+# Automated tests (EdgegapServer.test_auto_hit): every round, the server hits the
+# fish with the lowest peer ID, so the match ends after WINS_PER_MATCH rounds.
+func _test_auto_hit() -> void:
+	await get_tree().create_timer(1.5).timeout
+	var fish: Array = game.get_node("Players").get_children()
+	if fish.size() < 2:
+		return
+	fish.sort_custom(func(a, b): return int(str(a.name)) < int(str(b.name)))
+	print("Test auto-hit: fish %s" % fish[0].name)
+	var weapon := Node2D.new()
+	game.add_child(weapon)
+	weapon.global_position = fish[0].global_position + Vector2(20, 0)
+	fish[0].server_hit(weapon)
+	weapon.queue_free()
 
 func _on_Music_song_finished(song) -> void:
 	if not music.current_song.playing:
