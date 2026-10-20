@@ -1,5 +1,7 @@
 # Fish Game on Edgegap + Nakama: migration plan
 
+> Status: Phases 0-4 done and tested end to end on Edgegap (2026-10-20). The setup guide is [EDGEGAP.md](EDGEGAP.md). Phase 5 (publishing) and the art licence question are still open.
+
 Fork: https://github.com/edgegap/fishgame-godot (upstream `heroiclabs/fishgame-godot`, archived, Apache-2.0 code, CC BY-NC art/music).
 
 Goal: keep Nakama for accounts, matchmaking and leaderboards, and move the match itself onto a headless Godot dedicated server that the Nakama matchmaker starts on Edgegap through [edgegap/nakama-edgegap](https://github.com/edgegap/nakama-edgegap).

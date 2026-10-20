@@ -47,6 +47,9 @@ func _arg(arg_name: String, default: String = '') -> String:
 	return default
 
 func _matchmake(email: String) -> void:
+	# Nakama's HTTP adapter has to be in the tree before the first request.
+	await process_frame
+	await process_frame
 	var online = root.get_node("Online")
 	var online_match = root.get_node("OnlineMatch")
 	var username := email.split("@")[0]
@@ -56,6 +59,8 @@ func _matchmake(email: String) -> void:
 		quit(3)
 		return
 	online.nakama_session = session
+	# What the title screen's "Online" button does.
+	root.get_node("GameState").online_play = true
 	online.connect_nakama_socket()
 	await online.socket_connected
 	online_match.matchmaker_matched.connect(func(): print("TEST: matchmaker matched, waiting for the server"))
