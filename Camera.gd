@@ -1,9 +1,9 @@
 extends Camera2D
 
-export (NodePath) var player_container_path
-export (float, 0.1, 0.5) var zoom_offset := 0.2
+@export var player_container_path: NodePath
+@export var zoom_offset := 0.2 # (float, 0.1, 0.5)
 
-export (float) var custom_smoothing := 2.0
+@export var custom_smoothing := 2.0
 
 var player_container: Node2D
 
@@ -59,8 +59,9 @@ func calculate_center(camera_rect: Rect2) -> Vector2:
 		camera_rect.position.y + (camera_rect.size.y / 2))
 
 func calculate_zoom(camera_rect: Rect2, viewport_size: Vector2) -> Vector2:
-	var zoom = max(
+	var zoom_out = max(
 		max(1.0, (camera_rect.size.x / viewport_size.x) + zoom_offset),
 		max(1.0, (camera_rect.size.y / viewport_size.y) + zoom_offset))
-	return Vector2(zoom, zoom)
+	# Godot 4 inverted Camera2D.zoom: values below 1 zoom out.
+	return Vector2(1.0 / zoom_out, 1.0 / zoom_out)
 	
