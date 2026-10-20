@@ -5,3 +5,7 @@
 /webrtc_debug/
 /webrtc/
 /nakama/data/
+
+# Godot 4
+.godot/
+/tests/*.png
