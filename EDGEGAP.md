@@ -9,6 +9,17 @@ Upstream ran each match on one player's machine (the "host"), relayed through
 Nakama. Here no player hosts: a headless Godot server near the players runs the
 match and decides hits, deaths, rounds and the winner.
 
+## Licence
+
+**The code is Apache 2.0 (with some MIT addons), but most of the art, music
+and sound are [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/):
+non-commercial use only.** Everything in `assets/` is © 2021 Heroic Labs under
+CC BY-NC 4.0 ([assets/LICENSE.txt](assets/LICENSE.txt)), except the Monogram
+font (`assets/fonts/`) and the Kenney tiles (`assets/kenney-platform-deluxe/`),
+which are CC0. Use this sample to learn and to try Edgegap and Nakama; **if you
+ship a game based on it, replace the CC BY-NC assets first.** Details in the
+[README](README.md#licence).
+
 ```
 Player ──email sign-in──▶ Nakama ◀──────────── events, results ───────────┐
 Player ──matchmaker ticket──▶ Nakama ──Fleet Manager──▶ Edgegap deployment │
@@ -151,6 +162,37 @@ matches finish without anyone playing. Leave it off for real games.
   - when nobody joins within 60 seconds,
   - after 20 minutes.
 
+## Playing alone
+
+**Playing alone:** a single player who presses **Match** waits on "Looking for
+match..." and no server is started. The game asks Nakama's matchmaker for 2 to
+4 players (`min_count` is at least 2, `max_count` 4, in
+`autoload/OnlineMatch.gd`, and the Match screen's player count goes from 2 to 4),
+and Nakama only calls the hook that creates the Edgegap deployment
+(`nakama/main.go`) once it has enough players. The ticket doesn't expire on its
+own: it waits until another player queues, or until the player presses Back or
+closes the game, which removes it. "Local" play (two players on one machine)
+needs no server.
+
+## Who can join a server
+
+The server checks each connecting player's Nakama session token with Nakama's
+`/v2/account`, then only lets in the user IDs the matchmaker put in this match
+(`user_ids`, which `nakama/main.go` passes in `NAKAMA_INSTANCE_METADATA`).
+Anyone else gets "This game server is reserved for other players."
+
+**Known limitation:** unlike a plain ticket-less server, a stranger who
+learns the server address can't join: they would also need the session token
+of a Nakama user matched to this server. Two gaps remain. If the metadata has
+no `user_ids` (a server you start yourself with a Nakama URL), the matched-user
+check is skipped and any valid Nakama user can join. And the session token is
+sent to the game server over plain ENet, which is not encrypted, so someone on
+the network path could capture it. Deployments stop themselves when no one
+joins or everyone leaves, which limits cost. Before production, keep the
+`user_ids` check mandatory, and send a short-lived token issued for this match
+instead of the Nakama session token, or encrypt the connection (ENet supports
+DTLS).
+
 ## What's server-authoritative, and what isn't
 
 The server decides who gets hit, who dies, pickups, spawns, rounds, the winner
@@ -168,4 +210,5 @@ the server, with client prediction, is the next step for a competitive game.
 - Private matches by ID were removed: every match comes from the matchmaker.
   The Fleet Manager's `instance_create` / `instance_join` RPCs could bring them
   back.
-- Most art and music are CC BY-NC (see `assets/LICENSE.txt`).
+- Most art, music and sound are CC BY-NC 4.0, non-commercial only (see
+  [Licence](#licence)). Replace them before shipping a game.
