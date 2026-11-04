@@ -1,6 +1,8 @@
 "Fish Game" for Godot
 =====================
 
+![Add Edgegap dedicated game servers to Heroic Labs' Fish Game, using Nakama for matchmaking in Godot 4.](assets/screenshots/card.jpg)
+
 **"Fish Game" for Godot** is a 2-4 player online game built in the
 [Godot](https://godotengine.org/) game engine, created as a demonstration of
 [Nakama](https://heroiclabs.com/), an open-source scalable game server.
