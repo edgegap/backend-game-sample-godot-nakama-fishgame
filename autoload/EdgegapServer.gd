@@ -110,11 +110,12 @@ func _parse_env_json(env_name: String):
 # Checks a Nakama session token with Nakama itself and returns
 # { user_id, username }, or {} if the player doesn't belong on this server.
 func verify_player(token: String) -> Dictionary:
+	if nakama_url == '' and expected_user_ids.is_empty():
+		# No Nakama and no matched players (a local run, or a server started
+		# directly on Edgegap for a test): anyone may join.
+		var local_id := "local-%d" % randi()
+		return { user_id = local_id, username = "Fish %d" % (randi() % 1000) }
 	if nakama_url == '':
-		# Local test without Nakama: anyone may join.
-		if instance_id == '':
-			var local_id := "local-%d" % randi()
-			return { user_id = local_id, username = "Fish %d" % (randi() % 1000) }
 		push_error("No Nakama URL to verify players with")
 		return {}
 	if token == '':

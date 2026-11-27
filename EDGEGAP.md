@@ -37,7 +37,7 @@ Match won ──▶ server records the win in Nakama ──STOP──▶ deploym
 | `autoload/OnlineMatch.gd` | Client: matchmaker ticket, server address notification, ENet connection. Server: lets matched players in. |
 | `autoload/EdgegapServer.gd` | Dedicated server mode: listens, reports READY / connections / STOP to Nakama, stops itself. |
 | `Main.gd`, `Game.gd`, `actors/Player.gd`, `components/Hitbox.gd` | Game flow. Online, the server (peer 1) owns rounds, pickups, hits and deaths. |
-| `nakama/` | Nakama 3.39 + a Go module: Fleet Manager, matchmaker hook, authoritative `fish_game_wins` leaderboard. |
+| `nakama/` | Nakama 3.42 + a Go module: Fleet Manager, matchmaker hook, authoritative `fish_game_wins` leaderboard. |
 | `server/Dockerfile` | Exports the "Linux Server" preset to a `.pck` and runs it with headless Godot. |
 | `tests/` | Local smoke test, and the network test client used locally and on Edgegap. |
 
@@ -132,7 +132,7 @@ godot --headless --path .
 godot --path . -- --connect=127.0.0.1:7777
 ```
 
-With no Nakama configured, the server lets anyone in and stops when the match
+With no Nakama configured (no Nakama URL and no matched players), the server lets anyone in, locally or on a direct Edgegap deployment, and stops when the match
 ends.
 
 ## Tests

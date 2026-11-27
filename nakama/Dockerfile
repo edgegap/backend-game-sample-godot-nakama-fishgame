@@ -1,5 +1,5 @@
-# Nakama 3.39 with the Fish Game module (Edgegap Fleet Manager + matchmaker hook).
-FROM heroiclabs/nakama-pluginbuilder:3.39.0 AS builder
+# Nakama 3.42 with the Fish Game module (Edgegap Fleet Manager + matchmaker hook).
+FROM heroiclabs/nakama-pluginbuilder:3.42.0 AS builder
 
 ENV GO111MODULE=on
 ENV CGO_ENABLED=1
@@ -10,6 +10,6 @@ RUN go mod download
 COPY *.go ./
 RUN go build --trimpath --buildmode=plugin -o ./backend.so .
 
-FROM heroiclabs/nakama:3.39.0
+FROM heroiclabs/nakama:3.42.0
 
 COPY --from=builder /backend/backend.so /nakama/data/modules/
