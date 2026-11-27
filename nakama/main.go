@@ -7,7 +7,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"slices"
+	"strings"
 	"time"
 
 	"github.com/edgegap/nakama-edgegap/pkg/fleetmanager"
@@ -29,7 +31,12 @@ const (
 func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, initializer runtime.Initializer) error {
 	initStart := time.Now()
 
-	efm, err := fleetmanager.NewEdgegapFleetManager(ctx, logger, db, nk, initializer)
+	cfg, err := edgegapConfigFromEnv(ctx)
+	if err != nil {
+		logger.WithField("error", err).Error("failed to read Edgegap configuration")
+		return err
+	}
+	efm, err := fleetmanager.NewEdgegapFleetManager(ctx, logger, db, nk, cfg)
 	if err != nil {
 		logger.WithField("error", err).Error("failed to create Edgegap fleet manager")
 		return err
@@ -216,4 +223,58 @@ func errString(err error) string {
 		return "unknown error"
 	}
 	return err.Error()
+}
+
+// edgegapConfigFromEnv builds the Fleet Manager configuration from Nakama's
+// runtime env (--runtime.env, or runtime.env in the YAML config), with the same
+// variable names the plugin read itself before 3.42. Same logic as
+// edgegapConfigFromEnv in the plugin's own main.go at 902c9aa.
+func edgegapConfigFromEnv(ctx context.Context) (fleetmanager.EdgegapConfig, error) {
+	env := runtimeEnv(ctx)
+
+	required := make(map[string]string, 5)
+	for _, key := range []string{"EDGEGAP_API_URL", "EDGEGAP_API_TOKEN", "EDGEGAP_APPLICATION", "EDGEGAP_PORT_NAME", "NAKAMA_ACCESS_URL"} {
+		value, ok := env[key]
+		if !ok {
+			return fleetmanager.EdgegapConfig{}, runtime.NewError(key+" not found in environment", 3)
+		}
+		required[key] = value
+	}
+
+	cfg := fleetmanager.NewEdgegapConfig(required["EDGEGAP_API_URL"], required["EDGEGAP_API_TOKEN"], required["EDGEGAP_APPLICATION"], required["EDGEGAP_PORT_NAME"], required["NAKAMA_ACCESS_URL"])
+
+	// Only seeds the stored version the first time (references/infra.md §4).
+	cfg.InitialVersion = env["INITIAL_EDGEGAP_VERSION"]
+	if cfg.InitialVersion == "" {
+		cfg.InitialVersion = env["EDGEGAP_VERSION"] // older name
+	}
+
+	// Optional durations keep their defaults (15m, 1m, 30s) when unset; an empty
+	// polling or cleanup interval disables that worker.
+	durations := []struct {
+		key        string
+		value      *time.Duration
+		emptyValue bool
+	}{
+		{"EDGEGAP_POLLING_INTERVAL", &cfg.PollingInterval, true},
+		{"NAKAMA_CLEANUP_INTERVAL", &cfg.CleanupInterval, true},
+		{"NAKAMA_RESERVATION_MAX_DURATION", &cfg.ReservationMaxDuration, false},
+	}
+	for _, d := range durations {
+		value, ok := env[d.key]
+		if !ok {
+			continue
+		}
+		if d.emptyValue && strings.TrimSpace(value) == "" {
+			*d.value = 0
+			continue
+		}
+		parsed, err := time.ParseDuration(value)
+		if err != nil {
+			return fleetmanager.EdgegapConfig{}, fmt.Errorf("invalid %s: %s", d.key, value)
+		}
+		*d.value = parsed
+	}
+
+	return cfg, nil
 }
